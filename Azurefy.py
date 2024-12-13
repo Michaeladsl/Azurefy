@@ -243,6 +243,7 @@ ANSI_HTML_MAPPING = {
     r'\x1b\[94m': '<span style="color:blue;">',   
     r'\x1b\[96m': '<span style="color:cyan;">',   
     r'\x1b\[95m': '<span style="color:magenta;">',
+    r'\x1b\[42m': '<span style="background-color:green;">',
     r'\x1b\[0m': '</span>',                       
 }
 
