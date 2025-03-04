@@ -530,40 +530,51 @@ def write_results_to_file(results, file_name="results.json"):
 
 
 
-def capture_screenshot(html_file, output_directory):
-    """Capture screenshots of only the failed results inside each dropdown."""
-    options = Options()
-    options.add_argument("--headless")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--no-sandbox")
-    driver = webdriver.Chrome(options=options)
+async def capture_screenshots_with_puppeteer(html_file, output_directory):
+    """Capture screenshots using Puppeteer for failed sections."""
+    print("🚀 Launching Puppeteer for capturing screenshots...")
+    browser = await launch(headless=True)
+    page = await browser.newPage()
+
+    # Load the generated HTML file
+    file_url = f"file://{os.path.abspath(html_file)}"
+    await page.goto(file_url, {'waitUntil': 'domcontentloaded'})
+
+    # Find all <details> elements
+    details_handles = await page.querySelectorAll("details")
+    print(f"🔍 Found {len(details_handles)} <details> sections")
 
     if not os.path.exists(output_directory):
         os.makedirs(output_directory)
 
-    file_url = f"file://{os.path.abspath(html_file)}"
-    driver.get(file_url)
-
-    details_elements = driver.find_elements(By.TAG_NAME, "details")
-    for element in details_elements:
-        driver.execute_script("arguments[0].setAttribute('open', '')", element)
-
-    for idx, element in enumerate(details_elements):
+    screenshot_count = 0
+    for details in details_handles:
         try:
-            summary_element = element.find_element(By.TAG_NAME, "summary")
-            script_name = summary_element.text.split(":")[0].strip()
-            sanitized_name = "".join(c if c.isalnum() or c in "-_ " else "_" for c in script_name)
+            summary_text = await page.evaluate('(el) => el.querySelector("summary").innerText', details)
 
-            if "FAIL" in summary_element.text.upper():
-                pre_element = element.find_element(By.TAG_NAME, "pre")
-                driver.execute_script("arguments[0].scrollIntoView(true);", pre_element)
+            # Process only "Fail" sections
+            if "Fail" in summary_text or "fail" in summary_text:
+                print(f"⚠ Capturing 'Fail' section: {summary_text}")
 
-                screenshot_path = os.path.join(output_directory, f"{sanitized_name}.png")
-                pre_element.screenshot(screenshot_path)
+                # Clean filename
+                clean_title = re.sub(r'[^a-zA-Z0-9\s.-]', '', summary_text).strip().replace(" ", "_")
+
+                # Expand the details section
+                await page.evaluate('(el) => el.setAttribute("open", "")', details)
+                await asyncio.sleep(0.5)
+
+                # Capture screenshot
+                screenshot_path = os.path.join(output_directory, f"{clean_title}.png")
+                await details.screenshot({'path': screenshot_path})
+
+                print(f"📸 Screenshot saved: {screenshot_path}")
+                screenshot_count += 1
+
         except Exception as e:
-            print(f"Failed to capture screenshot for script: {e}")
+            print(f"❌ Error processing a section: {e}")
 
-    driver.quit()
+    await browser.close()
+    print(f"🎉 Captured {screenshot_count} screenshots of failed sections!")
 
 
 
@@ -610,7 +621,7 @@ def main():
     html_file = generate_html_report(results)
 
     screenshot_dir = "screenshots"
-    capture_screenshot(html_file, screenshot_dir)
+    asyncio.run(capture_screenshots_with_puppeteer(html_file, screenshot_dir))
     print("Screenshots Captured")
 
     write_results_to_file(results)
