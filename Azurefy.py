@@ -1,18 +1,16 @@
 import subprocess
 import os
-from datetime import datetime
-import pty
-import sys
 import re
-from colorama import init, Fore, Style
+import sys
 import json
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.options import Options
-import shutil
+import pty
 import argparse
+import shutil
+from datetime import datetime
+from colorama import init, Fore, Style
 from bs4 import BeautifulSoup
+import asyncio
+from pyppeteer import launch
 
 init(autoreset=True)
 
